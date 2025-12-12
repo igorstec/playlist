@@ -93,8 +93,8 @@ int main() {
 
   clog << "# Odtwarzamy pierwszy raz.\n";
   play(playlist1);
-  // clog << "# Płacimy.\n";
-  // pay(playlist1);
+  clog << "# Płacimy.\n";
+  pay(playlist1);
   // clog << "# Odtwarzamy drugi raz, usuwając utwory.\n";
   // lay(playlist1);
   //

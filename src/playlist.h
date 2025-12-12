@@ -108,7 +108,43 @@ namespace cxx {
                 };
             };
 
-            struct sorted_iterator{};
+            struct sorted_iterator {
+            public:
+                using iterator_concept = std::bidirectional_iterator_tag;
+                using value_type       = typename TrackPositionsMap::value_type;
+                using difference_type  = std::ptrdiff_t;
+                using pointer          = const value_type*;
+                using reference        = const value_type&;
+
+            private:
+                typename TrackPositionsMap::const_iterator it;
+            public:
+                sorted_iterator(typename TrackPositionsMap::const_iterator iter) noexcept
+                    : it(iter) {}
+                sorted_iterator(const sorted_iterator& other) noexcept
+                    : it(other.it) {}
+
+                bool operator==(const sorted_iterator& other) {
+                    return it== other.it;
+                }
+
+                pointer operator->() const {
+                    return &*it;
+                };
+                reference operator*() const {
+                    return *it;
+                }
+                sorted_iterator& operator++() {
+                    ++it;
+                    return *this;
+                };
+                sorted_iterator operator++(int) {
+                    sorted_iterator temp = *this;
+                    ++it;
+                    return temp;
+                }
+
+            };
         
             playlist() = default;
 
@@ -215,8 +251,8 @@ namespace cxx {
                 return {*(it->track), *it->params};
             };
 
-            const std::pair<const T&, size_t> pay(const sorted_iterator& it) {
-                return {*items.front().track, items.front().track_it->second.size()};
+            const std::pair<const T&, size_t> pay(const sorted_iterator& it) const {
+                return {*(it->first), it->second.size()};
             };
 
             P& params(const play_iterator& it);
@@ -231,9 +267,13 @@ namespace cxx {
                 return play_iterator(items.end());
             };
 
-            sorted_iterator sorted_begin();
+            sorted_iterator sorted_begin() const {
+                return sorted_iterator(track_positions_map.cbegin());
+            };
 
-            sorted_iterator sorted_end();
+            sorted_iterator sorted_end() const {
+                return sorted_iterator(track_positions_map.cend());
+            };
     };
 
 } // namespace cxx
