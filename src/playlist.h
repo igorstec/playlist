@@ -61,7 +61,7 @@ namespace cxx {
         public:
             struct play_iterator {
                 using iterator_concept = std::bidirectional_iterator_tag;
-                using value_type       = T;
+                using value_type       = PlaylistItem;
                 using difference_type  = std::ptrdiff_t;
 
                 using pointer          = const PlaylistItem*;
@@ -87,33 +87,21 @@ namespace cxx {
 
 
                 play_iterator& operator++() {
-                    if (it == items.cend()) {
-                        throw std::out_of_range("Play_iterator cannot be incremented past the end");
-                    }
                     ++it;
                     return *this;
                 };
                 play_iterator& operator--() {
-                    if( it == items.cbegin()) {
-                        throw std::out_of_range("Play_iterator cannot be decremented past the begin");
-                    }
                     --it;
                     return *this;
                 };
 
                 play_iterator operator++(int) {
-                    if (it == items.cend()) {
-                        throw std::out_of_range("Play_iterator cannot be incremented past the end");
-                    }
                     play_iterator temp = *this;
                     ++it;
                     return temp;
 
                 };
                 play_iterator operator--(int) {
-                    if( it == items.cbegin()) {
-                        throw std::out_of_range("Play_iterator cannot be decremented past the begin");
-                    }
                     play_iterator temp = *this;
                     --it;
                     return temp;
@@ -223,8 +211,8 @@ namespace cxx {
                 return items.size();
             }
 
-            const std::pair<const T&, const P&> play(const play_iterator& it) {
-                return {*items.front().track, *items.front().params};
+            const std::pair<const T&, const P&> play(const play_iterator& it) const {
+                return {*it->track, *it->params};
             };
 
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) {
@@ -235,12 +223,12 @@ namespace cxx {
 
             const P& params(const play_iterator& it) const;
 
-            play_iterator play_begin() {
-                return play_iterator(items.cbegin());
+            play_iterator play_begin() const {
+                return play_iterator(items.begin());
             };
 
-            play_iterator play_end() {
-                return nullptr;
+            play_iterator play_end() const {
+                return play_iterator(items.end());
             };
 
             sorted_iterator sorted_begin();
