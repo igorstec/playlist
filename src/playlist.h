@@ -71,6 +71,8 @@ namespace cxx {
             public:
                 explicit play_iterator(typename PlaylistItemList::const_iterator iter) noexcept
                     : it(iter) {}
+                explicit play_iterator(play_iterator const& other) noexcept
+                    : it(other.it) {}
 
                 bool operator==(const play_iterator& other) const {
                     it == other.it;
@@ -84,11 +86,38 @@ namespace cxx {
                 };
 
 
-                play_iterator& operator++();
-                play_iterator& operator--();
+                play_iterator& operator++() {
+                    if (it == items.cend()) {
+                        throw std::out_of_range("Play_iterator cannot be incremented past the end");
+                    }
+                    ++it;
+                    return this;
+                };
+                play_iterator& operator--() {
+                    if( it == items.cbegin()) {
+                        throw std::out_of_range("Play_iterator cannot be decremented past the begin");
+                    }
+                    --it;
+                    return this;
+                };
 
-                play_iterator operator++(int);
-                play_iterator operator--(int);
+                play_iterator operator++(int) {
+                    if (it == items.cend()) {
+                        throw std::out_of_range("Play_iterator cannot be incremented past the end");
+                    }
+                    play_iterator temp = this;
+                    ++it;
+                    return temp;
+
+                };
+                play_iterator operator--(int) {
+                    if( it == items.cbegin()) {
+                        throw std::out_of_range("Play_iterator cannot be decremented past the begin");
+                    }
+                    play_iterator temp = this;
+                    --it;
+                    return temp;
+                };
 
 
             };
