@@ -51,7 +51,7 @@ namespace cxx {
 
             struct PlaylistItem {
                 const std::shared_ptr<const T> track;
-                const std::unique_ptr<const P> params;
+                const std::unique_ptr< P> params;
                 TrackPositionsMap::iterator track_it;
             };
 
@@ -160,7 +160,7 @@ namespace cxx {
 
             // Complexity: O(logn).
             void push_back(const T& track, const P& params) {
-                auto params_ptr = std::make_unique<const P>(params);
+                auto params_ptr = std::make_unique<P>(params);
 
                 auto track_it = track_positions_map.find(track);
                 std::shared_ptr<const T> track_ptr;
@@ -255,9 +255,13 @@ namespace cxx {
                 return {*(it->first), it->second.size()};
             };
 
-            P& params(const play_iterator& it);
+            P& params(const play_iterator& it) {
+                return *it->params;
+            };
 
-            const P& params(const play_iterator& it) const;
+            const P& params(const play_iterator& it) const {
+                return *it->params;
+            };
 
             play_iterator play_begin() const {
                 return play_iterator(items.begin());
