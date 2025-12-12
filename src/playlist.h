@@ -64,18 +64,18 @@ namespace cxx {
                 using value_type       = T;
                 using difference_type  = std::ptrdiff_t;
 
-                using pointer          = PlaylistItem*;
-                using reference        = PlaylistItem&;
+                using pointer          = const PlaylistItem*;
+                using reference        = const PlaylistItem&;
             private:
                 typename PlaylistItemList::const_iterator it;
             public:
                 explicit play_iterator(typename PlaylistItemList::const_iterator iter) noexcept
                     : it(iter) {}
-                explicit play_iterator(play_iterator const& other) noexcept
+                explicit play_iterator(const play_iterator& other) noexcept
                     : it(other.it) {}
 
                 bool operator==(const play_iterator& other) const {
-                    it == other.it;
+                    return it == other.it;
                 }
 
                 reference operator*() const {
@@ -91,21 +91,21 @@ namespace cxx {
                         throw std::out_of_range("Play_iterator cannot be incremented past the end");
                     }
                     ++it;
-                    return this;
+                    return *this;
                 };
                 play_iterator& operator--() {
                     if( it == items.cbegin()) {
                         throw std::out_of_range("Play_iterator cannot be decremented past the begin");
                     }
                     --it;
-                    return this;
+                    return *this;
                 };
 
                 play_iterator operator++(int) {
                     if (it == items.cend()) {
                         throw std::out_of_range("Play_iterator cannot be incremented past the end");
                     }
-                    play_iterator temp = this;
+                    play_iterator temp = *this;
                     ++it;
                     return temp;
 
@@ -114,13 +114,12 @@ namespace cxx {
                     if( it == items.cbegin()) {
                         throw std::out_of_range("Play_iterator cannot be decremented past the begin");
                     }
-                    play_iterator temp = this;
+                    play_iterator temp = *this;
                     --it;
                     return temp;
                 };
-
-
             };
+
             struct sorted_iterator{};
         
             playlist() = default;
