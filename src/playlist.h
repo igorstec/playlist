@@ -212,7 +212,7 @@ namespace cxx {
             }
 
             const std::pair<const T&, const P&> play(const play_iterator& it) const {
-                return {*it->track, *it->params};
+                return {*(it->track), *it->params};
             };
 
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) {
