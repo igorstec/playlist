@@ -71,7 +71,7 @@ namespace cxx {
             public:
                 explicit play_iterator(typename PlaylistItemList::const_iterator iter) noexcept
                     : it(iter) {}
-                explicit play_iterator(const play_iterator& other) noexcept
+                play_iterator(const play_iterator& other) noexcept
                     : it(other.it) {}
 
                 bool operator==(const play_iterator& other) const {
@@ -119,7 +119,7 @@ namespace cxx {
             private:
                 typename TrackPositionsMap::const_iterator it;
             public:
-                sorted_iterator(typename TrackPositionsMap::const_iterator iter) noexcept
+                explicit sorted_iterator(typename TrackPositionsMap::const_iterator iter) noexcept
                     : it(iter) {}
                 sorted_iterator(const sorted_iterator& other) noexcept
                     : it(other.it) {}
