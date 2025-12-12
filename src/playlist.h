@@ -59,18 +59,52 @@ namespace cxx {
             TrackPositionsMap track_positions_map;
 
         public:
-            struct play_iterator{};
+            struct play_iterator {
+                using iterator_concept = std::bidirectional_iterator_tag;
+                using value_type       = T;
+                using difference_type  = std::ptrdiff_t;
+
+                using pointer          = PlaylistItem*;
+                using reference        = PlaylistItem&;
+            private:
+                typename PlaylistItemList::const_iterator it;
+            public:
+                explicit play_iterator(typename PlaylistItemList::const_iterator iter) noexcept
+                    : it(iter) {}
+
+                bool operator==(const play_iterator& other) const {
+                    it == other.it;
+                }
+
+                reference operator*() const {
+                    return *it;
+                };
+                pointer operator->() const {
+                    return &*it;
+                };
+
+
+                play_iterator& operator++();
+                play_iterator& operator--();
+
+                play_iterator operator++(int);
+                play_iterator operator--(int);
+
+
+            };
             struct sorted_iterator{};
         
-            playlist();
+            playlist() = default;
 
-            playlist(const playlist& that);
+            playlist(const playlist& that) = default;
 
-            playlist(playlist&& that);
+            playlist(playlist&& that) = default;
 
-            ~playlist();
+            ~playlist() = default;
 
-            playlist& operator=(playlist that);
+            playlist& operator=(playlist that) {
+
+            };
 
             // Complexity: O(logn).
             void push_back(const T& track, const P& params) {
@@ -151,24 +185,35 @@ namespace cxx {
                 track_positions_map.erase(track_it);
             }
 
-            void clear();
+            void clear() {
+                items.clear();
+                track_positions_map.clear();
+            };
 
             // Complexity: O(1).
             size_t size() {
                 return items.size();
             }
 
-            const std::pair<const T&, const P&> play(const play_iterator& it);
+            const std::pair<const T&, const P&> play(const play_iterator& it) {
+                return {*items.front().track, *items.front().params};
+            };
 
-            const std::pair<const T&, size_t> pay(const sorted_iterator& it);
+            const std::pair<const T&, size_t> pay(const sorted_iterator& it) {
+                return {*items.front().track, items.front().track_it->second.size()};
+            };
 
             P& params(const play_iterator& it);
 
             const P& params(const play_iterator& it) const;
 
-            play_iterator play_begin();
+            play_iterator play_begin() {
+                return play_iterator(items.cbegin());
+            };
 
-            play_iterator play_end();
+            play_iterator play_end() {
+                return nullptr;
+            };
 
             sorted_iterator sorted_begin();
 
