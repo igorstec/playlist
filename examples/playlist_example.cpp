@@ -179,6 +179,6 @@ int main() {
   for (unsigned i = 0; i < BIG_VALUE; i++)
     playlist2.push_back(tracks[0], {0, i});
   assert(playlist2.size() == BIG_VALUE);
-  // for (unsigned i = 0; i < 10 * BIG_VALUE; i++)
-  //   vec.push_back(playlist2); // Wszystkie obiekty w vec współdzielą dane.
+  for (unsigned i = 0; i < 10 * BIG_VALUE; i++)
+    vec.push_back(playlist2); // Wszystkie obiekty w vec współdzielą dane.
 }

@@ -55,8 +55,14 @@ namespace cxx {
                 TrackPositionsMap::iterator track_it;
             };
 
-            PlaylistItemList items;
-            TrackPositionsMap track_positions_map;
+            // Shared data structure for CoW implementation
+            struct PlaylistData {
+                PlaylistItemList items;
+                TrackPositionsMap track_positions_map;
+            };
+
+            std::shared_ptr<PlaylistData> data;
+
 
         public:
             struct play_iterator {
@@ -146,29 +152,40 @@ namespace cxx {
 
             };
         
-            playlist() = default;
+            // Constructors
+            playlist() : data(std::make_shared<PlaylistData>()) {}
 
-            playlist(const playlist& that) = default;
+            playlist(const playlist& that)
+                : data(that.data) {
+                // Copy-on-write: share data until modification
+            }
 
-            playlist(playlist&& that) = default;
+            playlist(playlist&& that) noexcept
+                : data(std::move(that.data)) {
+                // Move constructor leaves original in consistent empty state which is safer
+                that.data = std::make_shared<PlaylistData>();
+            }
 
-            ~playlist() = default;
+            ~playlist() noexcept = default;
 
-            playlist& operator=(playlist that) {
-
-            };
+            playlist& operator=(playlist that) noexcept {
+                // Copy-and-swap idiom with argument by value
+                // Exception safe: swap is noexcept and is faster than '='
+                std::swap(data, that.data);
+                return *this;
+            }
 
             // Complexity: O(logn).
             void push_back(const T& track, const P& params) {
                 auto params_ptr = std::make_unique<P>(params);
 
-                auto track_it = track_positions_map.find(track);
+                auto track_it = data->track_positions_map.find(track);
                 std::shared_ptr<const T> track_ptr;
 
-                if (track_it == track_positions_map.end()) {
+                if (track_it == data->track_positions_map.end()) {
                     track_ptr = std::make_shared<const T>(track);
 
-                    auto emplaced = track_positions_map.emplace(
+                    auto emplaced = data->track_positions_map.emplace(
                         track_ptr, 
                         std::list<typename PlaylistItemList::const_iterator>{}
                     );
@@ -178,24 +195,24 @@ namespace cxx {
                     track_ptr = track_it->first;
                 }
 
-                items.emplace_back(
+                data->items.emplace_back(
                     track_ptr, 
                     std::move(params_ptr), 
                     track_it
                 );
 
                 // Add the new track position to its position list.
-                const auto item_it = --items.cend();
+                const auto item_it = --data->items.cend();
                 track_it->second.push_back(item_it);
             }
 
             // Complexity: O(1) - even the map erasure is amortized constant.
             void pop_front() {
-                if (items.empty()) {
+                if (data->items.empty()) {
                     throw std::out_of_range("Playlist is empty");
                 }
 
-                const auto& front_item = items.front();
+                const auto& front_item = data->items.front();
                 const auto track_it = front_item.track_it;
 
                 // The positions in the list are naturally sorted,
@@ -204,19 +221,19 @@ namespace cxx {
                 track_positions.pop_front();
 
                 if (track_positions.empty()) {
-                    track_positions_map.erase(track_it);
+                    data->track_positions_map.erase(track_it);
                 }
 
-                items.pop_front();
+                data->items.pop_front();
             }
             
             // Complexity: O(1).
             const std::pair<const T&, const P&> front() const {
-                if (items.empty()) {
+                if (data->items.empty()) {
                     throw std::out_of_range("Playlist is empty");
                 }
 
-                const auto& front_item = items.front(); 
+                const auto& front_item = data->items.front();
                 
                 return {*front_item.track, *front_item.params};
             }
@@ -224,27 +241,27 @@ namespace cxx {
             // Complexity: O(logn + k),
             // where k is the number of occurences of the track in the playlist.
             void remove(const T& track) {
-                const auto track_it = track_positions_map.find(track);
-                if (track_it == track_positions_map.cend()) {
+                const auto track_it = data->track_positions_map.find(track);
+                if (track_it == data->track_positions_map.cend()) {
                     throw std::invalid_argument("Track is not on the playlist");
                 }
 
                 const auto& positions = track_it->second;
                 for (const auto position : positions) {
-                    items.erase(position);
+                    data->items.erase(position);
                 }
 
-                track_positions_map.erase(track_it);
+                data->track_positions_map.erase(track_it);
             }
 
             void clear() {
-                items.clear();
-                track_positions_map.clear();
+                data->items.clear();
+                data->track_positions_map.clear();
             };
 
             // Complexity: O(1).
             size_t size() {
-                return items.size();
+                return data->items.size();
             }
 
             const std::pair<const T&, const P&> play(const play_iterator& it) const {
@@ -264,19 +281,19 @@ namespace cxx {
             };
 
             play_iterator play_begin() const {
-                return play_iterator(items.begin());
+                return play_iterator(data->items.begin());
             };
 
             play_iterator play_end() const {
-                return play_iterator(items.end());
+                return play_iterator(data->items.end());
             };
 
             sorted_iterator sorted_begin() const {
-                return sorted_iterator(track_positions_map.cbegin());
+                return sorted_iterator(data->track_positions_map.cbegin());
             };
 
             sorted_iterator sorted_end() const {
-                return sorted_iterator(track_positions_map.cend());
+                return sorted_iterator(data->track_positions_map.cend());
             };
     };
 
