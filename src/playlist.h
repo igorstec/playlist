@@ -67,7 +67,30 @@ namespace cxx {
         // If not unique, performs deep copy
         void ensure_unique() {
             if(data && data.use_count()>1) {
-                //TODO: Deep copy implementation for this.data (unique_ptr problems for P)
+                //Deep copy implementation for this.data
+                auto new_data = std::make_shared<PlaylistData>();
+                for (const auto& item : data->items) {
+                    auto new_params = std::make_unique<P>(*item.params);
+                    new_data->items.emplace_back(
+                        item.track,
+                        std::move(new_params),
+                        typename TrackPositionsMap::iterator{}
+                    );
+                    auto track_it = new_data->track_positions_map.find(*item.track);
+                    if (track_it == new_data->track_positions_map.end()) {
+                        auto emplaced = new_data->track_positions_map.emplace(
+                            item.track,
+                            std::list<typename PlaylistItemList::const_iterator>{}
+                        );
+                        track_it = emplaced.first;
+                    }
+                    // Add the new track position (current last added) to its position list.
+                    const auto item_it = --new_data->items.end();
+                    track_it->second.push_back(item_it);
+                    // Update the item's track_it to point to the new map entry.
+                    item_it->track_it = track_it;
+                }
+                data = std::move(new_data);
             }
         }
 
