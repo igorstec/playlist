@@ -63,6 +63,14 @@ namespace cxx {
 
             std::shared_ptr<PlaylistData> data;
 
+        // Ensure unique ownership of data before modification
+        // If not unique, performs deep copy
+        void ensure_unique() {
+            if(data && data.use_count()>1) {
+                //TODO: Deep copy implementation for this.data (unique_ptr problems for P)
+            }
+        }
+
 
         public:
             struct play_iterator {
@@ -177,6 +185,8 @@ namespace cxx {
 
             // Complexity: O(logn).
             void push_back(const T& track, const P& params) {
+                ensure_unique();
+
                 auto params_ptr = std::make_unique<P>(params);
 
                 auto track_it = data->track_positions_map.find(track);
@@ -212,6 +222,8 @@ namespace cxx {
                     throw std::out_of_range("Playlist is empty");
                 }
 
+                ensure_unique();
+
                 const auto& front_item = data->items.front();
                 const auto track_it = front_item.track_it;
 
@@ -246,6 +258,8 @@ namespace cxx {
                     throw std::invalid_argument("Track is not on the playlist");
                 }
 
+                ensure_unique();
+
                 const auto& positions = track_it->second;
                 for (const auto position : positions) {
                     data->items.erase(position);
@@ -273,6 +287,7 @@ namespace cxx {
             };
 
             P& params(const play_iterator& it) {
+                ensure_unique();
                 return *it->params;
             };
 
