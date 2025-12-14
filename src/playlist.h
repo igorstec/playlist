@@ -6,6 +6,7 @@
 #include <memory>
 #include <list>
 #include <stdexcept>
+#include <iterator>
 
 namespace cxx {
 
@@ -62,13 +63,10 @@ namespace cxx {
             };
 
             std::shared_ptr<PlaylistData> data;
-
-        // Ensure unique ownership of data before modification
-        // If not unique, performs deep copy
-        void ensure_unique() {
-            if(data && data.use_count()>1) {
-                //Deep copy implementation for this.data
+        
+            void copy_data() {
                 auto new_data = std::make_shared<PlaylistData>();
+                
                 for (const auto& item : data->items) {
                     auto new_params = std::make_unique<P>(*item.params);
                     new_data->items.emplace_back(
@@ -76,6 +74,7 @@ namespace cxx {
                         std::move(new_params),
                         typename TrackPositionsMap::iterator{}
                     );
+
                     auto track_it = new_data->track_positions_map.find(*item.track);
                     if (track_it == new_data->track_positions_map.end()) {
                         auto emplaced = new_data->track_positions_map.emplace(
@@ -84,16 +83,17 @@ namespace cxx {
                         );
                         track_it = emplaced.first;
                     }
+
                     // Add the new track position (current last added) to its position list.
                     const auto item_it = --new_data->items.end();
                     track_it->second.push_back(item_it);
+                    
                     // Update the item's track_it to point to the new map entry.
                     item_it->track_it = track_it;
                 }
+                
                 data = std::move(new_data);
             }
-        }
-
 
         public:
             struct play_iterator {
@@ -111,8 +111,14 @@ namespace cxx {
                 play_iterator(const play_iterator& other) noexcept
                     : it(other.it) {}
 
+                play_iterator& operator=(const play_iterator&) = default;
+
                 bool operator==(const play_iterator& other) const {
                     return it == other.it;
+                }
+
+                bool operator!=(const play_iterator& other) const {
+                    return it != other.it;
                 }
 
                 reference operator*() const {
@@ -143,7 +149,7 @@ namespace cxx {
                     --it;
                     return temp;
                 };
-            };
+            }; // play_iterator
 
             struct sorted_iterator {
             public:
@@ -161,8 +167,14 @@ namespace cxx {
                 sorted_iterator(const sorted_iterator& other) noexcept
                     : it(other.it) {}
 
-                bool operator==(const sorted_iterator& other) {
-                    return it== other.it;
+                sorted_iterator& operator=(const sorted_iterator&) = default;
+                
+                bool operator==(const sorted_iterator& other) const {
+                    return it == other.it;
+                }
+
+                bool operator!=(const sorted_iterator& other) const {
+                    return it != other.it;
                 }
 
                 pointer operator->() const {
@@ -181,7 +193,7 @@ namespace cxx {
                     return temp;
                 }
 
-            };
+            }; // sorted_iterator
         
             // Constructors
             playlist() : data(std::make_shared<PlaylistData>()) {}
@@ -208,7 +220,7 @@ namespace cxx {
 
             // Complexity: O(logn).
             void push_back(const T& track, const P& params) {
-                ensure_unique();
+                copy_data();
 
                 auto params_ptr = std::make_unique<P>(params);
 
@@ -245,7 +257,7 @@ namespace cxx {
                     throw std::out_of_range("Playlist is empty");
                 }
 
-                ensure_unique();
+                copy_data();
 
                 const auto& front_item = data->items.front();
                 const auto track_it = front_item.track_it;
@@ -276,12 +288,17 @@ namespace cxx {
             // Complexity: O(logn + k),
             // where k is the number of occurences of the track in the playlist.
             void remove(const T& track) {
-                const auto track_it = data->track_positions_map.find(track);
+                auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
                     throw std::invalid_argument("Track is not on the playlist");
                 }
 
-                ensure_unique();
+                // Copy-On-Write.
+                // Gets an iterator to the track's positions in the new data.
+                if (data && data.use_count() > 1) {
+                    copy_data();
+                    track_it = data->track_positions_map.find(track);
+                }
 
                 const auto& positions = track_it->second;
                 for (const auto position : positions) {
@@ -292,47 +309,54 @@ namespace cxx {
             }
 
             void clear() {
-                data->items.clear();
-                data->track_positions_map.clear();
-            };
+                data = std::make_shared<PlaylistData>();
+            }
 
             // Complexity: O(1).
-            size_t size() {
+            size_t size() const {
                 return data->items.size();
             }
 
             const std::pair<const T&, const P&> play(const play_iterator& it) const {
                 return {*(it->track), *it->params};
-            };
+            }
 
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) const {
                 return {*(it->first), it->second.size()};
-            };
+            }
 
             P& params(const play_iterator& it) {
-                ensure_unique();
-                return *it->params;
-            };
+                auto iterator = it;
+
+                if (data && data.use_count() > 1) {
+                    auto pointed_index = std::distance(play_begin(), it);
+                    copy_data();
+                    iterator = play_begin();
+                    std::advance(iterator, pointed_index);
+                }
+                
+                return *iterator->params;
+            }
 
             const P& params(const play_iterator& it) const {
                 return *it->params;
-            };
+            }
 
             play_iterator play_begin() const {
                 return play_iterator(data->items.begin());
-            };
+            }
 
             play_iterator play_end() const {
                 return play_iterator(data->items.end());
-            };
+            }
 
             sorted_iterator sorted_begin() const {
                 return sorted_iterator(data->track_positions_map.cbegin());
-            };
+            }
 
             sorted_iterator sorted_end() const {
                 return sorted_iterator(data->track_positions_map.cend());
-            };
+            }
     };
 
 } // namespace cxx
