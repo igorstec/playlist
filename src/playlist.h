@@ -3,8 +3,10 @@
 
 #include <utility>
 #include <map>
+#include <memory>
 #include <list>
 #include <stdexcept>
+#include <iterator>
 
 namespace cxx {
 
