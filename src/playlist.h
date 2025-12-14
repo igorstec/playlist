@@ -115,43 +115,43 @@ namespace cxx {
                     : it(other.it)
                     {}
 
-                    ~play_iterator(void) = default;
+                    ~play_iterator(void) noexcept = default;
 
-                    play_iterator& operator=(const play_iterator&) = default;
+                    play_iterator& operator=(const play_iterator&) noexcept = default;
 
-                    bool operator==(const play_iterator& other) const {
+                    bool operator==(const play_iterator& other) const noexcept {
                         return it == other.it;
                     }
 
-                    bool operator!=(const play_iterator& other) const {
+                    bool operator!=(const play_iterator& other) const noexcept {
                         return it != other.it;
                     }
 
-                    const PlaylistItem& operator*(void) const {
+                    const PlaylistItem& operator*(void) const noexcept {
                         return *it;
                     }
 
-                    const PlaylistItem* operator->(void) const {
+                    const PlaylistItem* operator->(void) const noexcept {
                         return &*it;
                     }
 
-                    play_iterator& operator++(void) {
+                    play_iterator& operator++(void) noexcept {
                         ++it;
                         return *this;
                     }
 
-                    play_iterator& operator--(void) {
+                    play_iterator& operator--(void) noexcept {
                         --it;
                         return *this;
                     }
 
-                    play_iterator operator++(int) {
+                    play_iterator operator++(int) noexcept {
                         play_iterator ret = *this;
                         ++it;
                         return ret;
                     }
 
-                    play_iterator operator--(int) {
+                    play_iterator operator--(int) noexcept {
                         play_iterator ret = *this;
                         --it;
                         return ret;
@@ -178,32 +178,32 @@ namespace cxx {
                     : it(other.it)
                     {}
 
-                    ~sorted_iterator(void) = default;
+                    ~sorted_iterator(void) noexcept = default;
 
-                    sorted_iterator& operator=(const sorted_iterator&) = default;
+                    sorted_iterator& operator=(const sorted_iterator&) noexcept = default;
                     
-                    bool operator==(const sorted_iterator& other) const {
+                    bool operator==(const sorted_iterator& other) const noexcept {
                         return it == other.it;
                     }
 
-                    bool operator!=(const sorted_iterator& other) const {
+                    bool operator!=(const sorted_iterator& other) const noexcept {
                         return it != other.it;
                     }
 
-                    const value_type* operator->(void) const {
+                    const value_type* operator->(void) const noexcept {
                         return &*it;
                     }
 
-                    const value_type& operator*(void) const {
+                    const value_type& operator*(void) const noexcept {
                         return *it;
                     }
                     
-                    sorted_iterator& operator++(void) {
+                    sorted_iterator& operator++(void) noexcept {
                         ++it;
                         return *this;
                     }
 
-                    sorted_iterator operator++(int) {
+                    sorted_iterator operator++(int) noexcept {
                         sorted_iterator ret = *this;
                         ++it;
                         return ret;
@@ -211,11 +211,11 @@ namespace cxx {
 
             }; // sorted_iterator
         
-            playlist()
+            playlist() noexcept
             : data(std::make_shared<PlaylistData>())
             {}
 
-            playlist(const playlist& that)
+            playlist(const playlist& that) noexcept
             : data(that.data)
             {}
 
@@ -305,10 +305,9 @@ namespace cxx {
                     throw std::invalid_argument("remove, unknown track");
                 }
 
-                // Copy-On-Write.
-                // Gets an iterator to the track's positions in the new data.
                 if (data && data.use_count() > 1) {
                     copy_data();
+                    // Gets an iterator to the track's positions in the new data.
                     track_it = data->track_positions_map.find(track);
                 }
 
@@ -329,7 +328,7 @@ namespace cxx {
             }
 
             const std::pair<const T&, const P&> play(const play_iterator& it) const {
-                return {*(it->track), *it->params};
+                return {*(it->track), *(it->params)};
             }
 
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) const {
