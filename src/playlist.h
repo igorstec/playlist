@@ -64,7 +64,7 @@ namespace cxx {
 
             std::shared_ptr<PlaylistData> data;
         
-            void copy_data() {
+            std::shared_ptr<PlaylistData> clone_data() const {
                 auto new_data = std::make_shared<PlaylistData>();
                 
                 for (const auto& item : data->items) {
@@ -92,7 +92,7 @@ namespace cxx {
                     item_it->track_it = track_it;
                 }
                 
-                data = std::move(new_data);
+                return new_data;
             }
 
         public:
@@ -230,39 +230,55 @@ namespace cxx {
                 return *this;
             }
 
-            // TODO: inspect for exceptions.
             void push_back(const T& track, const P& params) {
-                if (data && data.use_count() > 1) {
-                    copy_data();
+                auto& target_data = data;
+                bool should_copy = (data && data.use_count() > 1);
+
+                if (should_copy) {
+                    target_data = clone_data();
                 }
 
                 auto params_ptr = std::make_unique<P>(params);
+                auto track_it = target_data->track_positions_map.find(track);
+                bool inserted_in_map = false;
 
-                auto track_it = data->track_positions_map.find(track);
-                std::shared_ptr<const T> track_ptr;
-
-                if (track_it == data->track_positions_map.end()) {
-                    track_ptr = std::make_shared<const T>(track);
-
-                    auto emplaced = data->track_positions_map.emplace(
-                        track_ptr, 
+                if (track_it == target_data->track_positions_map.end()) {
+                    auto track_ptr = std::make_shared<const T>(track);
+                    auto emplaced = target_data->track_positions_map.emplace(
+                        std::move(track_ptr), 
                         std::list<typename PlaylistItemList::const_iterator>{}
                     );
-
                     track_it = emplaced.first;
-                } else {
-                    track_ptr = track_it->first;
+                    inserted_in_map = true;
                 }
 
-                data->items.emplace_back(
-                    track_ptr, 
-                    std::move(params_ptr), 
-                    track_it
-                );
+                try {
+                    target_data->items.emplace_back(
+                        track_it->first, 
+                        std::move(params_ptr), 
+                        track_it
+                    );
+                } catch (...) {
+                    if (inserted_in_map) {
+                        target_data->track_positions_map.erase(track_it);
+                    }
+                    throw;
+                }
 
-                // Add the new track position to its position list.
-                const auto item_it = --data->items.cend();
-                track_it->second.push_back(item_it);
+                try {
+                    const auto item_it = --target_data->items.end();
+                    track_it->second.push_back(item_it);
+                } catch (...) {
+                    target_data->items.pop_back();
+                    if (inserted_in_map) {
+                        target_data->track_positions_map.erase(track_it);
+                    }
+                    throw;
+                }
+
+                if (should_copy) {
+                    data = std::move(target_data);
+                }
             }
 
             void pop_front() {
@@ -271,7 +287,7 @@ namespace cxx {
                 }
 
                 if (data && data.use_count() > 1) {
-                    copy_data();
+                    data = clone_data();
                 }
 
                 const auto& front_item = data->items.front();
@@ -306,7 +322,7 @@ namespace cxx {
                 }
 
                 if (data && data.use_count() > 1) {
-                    copy_data();
+                    data = clone_data();
                     // Gets an iterator to the track's positions in the new data.
                     track_it = data->track_positions_map.find(track);
                 }
@@ -343,7 +359,7 @@ namespace cxx {
 
                 if (data && data.use_count() > 1) {
                     auto pointed_index = std::distance(play_begin(), it);
-                    copy_data();
+                    data = clone_data();
                     iterator = play_begin();
                     std::advance(iterator, pointed_index);
                 }
