@@ -489,7 +489,7 @@ void test_13_detach_on_nonconst_params() {
     TestParams& ref = p1.params(it1);
     ref.volume = 99;
 
-    auto pr1_after = p1.play(it1);
+    auto pr1_after = p1.play(p1.play_begin());
     auto pr2_after = p2.play(it2);
 
     // Parametry powinny być różne i pod różnymi adresami.
@@ -832,7 +832,7 @@ void test_26_multiple_cow_chains() {
     ref2.tag = 77;
 
     auto pr1a = p1.play(it1);
-    auto pr2a = p2.play(it2);
+    auto pr2a = p2.play(p2.play_begin());
     auto pr3a = p3.play(it3);
 
     // p2 powinno się odłączyć od p1 i p3.
