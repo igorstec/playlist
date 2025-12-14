@@ -273,7 +273,7 @@ namespace cxx {
                 }
             }
 
-            void pop_front() noexcept(false) {
+            void pop_front() {
                 // Check if empty BEFORE COW check (strong exception safety).
                 if (data->items.empty()) {
                     throw std::out_of_range("pop_front, playlist empty");
@@ -299,7 +299,7 @@ namespace cxx {
                 data->items.pop_front();
             }
 
-            const std::pair<const T&, const P&> front() const noexcept(false) {
+            const std::pair<const T&, const P&> front() const {
                 if (data->items.empty()) {
                     throw std::out_of_range("front, playlist empty");
                 }
@@ -309,7 +309,7 @@ namespace cxx {
                 return {*front_item.track, *front_item.params};
             }
 
-            void remove(const T& track) noexcept(false) {
+            void remove(const T& track) {
                 // Check existence BEFORE COW check (strong exception safety).
                 auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
@@ -339,12 +339,12 @@ namespace cxx {
                 return data->items.size();
             }
 
-            // Returns const reference to track and params at iterator position. O(1) complexity.
+            // Returns const reference to track and params at iterator position.
             const std::pair<const T&, const P&> play(const play_iterator& it) const noexcept {
                 return {*(it.it->track), *(it.it->params)};
             }
 
-            // Returns const reference to track and count of occurrences. O(k) where k is occurrence count.
+            // Returns const reference to track and count of occurrences.
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) const noexcept {
                 const auto& track_ptr = it.it->first;
                 const auto& positions_list = it.it->second;
@@ -368,7 +368,7 @@ namespace cxx {
                 return *iterator.it->params;
             }
 
-            // Const version: no COW needed, just access
+            // Const version: no COW needed, just access.
             const P& params(const play_iterator& it) const {
                 return *it.it->params;
             }
