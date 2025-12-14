@@ -1,4 +1,4 @@
-#include "playlist.h"
+#include "../src/playlist.h"
 #include <iostream>
 #include <vector>
 #include <cassert>
