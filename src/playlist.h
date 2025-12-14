@@ -232,7 +232,9 @@ namespace cxx {
 
             // TODO: inspect for exceptions.
             void push_back(const T& track, const P& params) {
-                copy_data();
+                if (data && data.use_count() > 1) {
+                    copy_data();
+                }
 
                 auto params_ptr = std::make_unique<P>(params);
 
@@ -265,10 +267,12 @@ namespace cxx {
 
             void pop_front() {
                 if (data->items.empty()) {
-                    throw std::out_of_range("Playlist is empty");
+                    throw std::out_of_range("pop_front, playlist empty");
                 }
 
-                copy_data();
+                if (data && data.use_count() > 1) {
+                    copy_data();
+                }
 
                 const auto& front_item = data->items.front();
                 const auto track_it = front_item.track_it;
@@ -287,7 +291,7 @@ namespace cxx {
             
             const std::pair<const T&, const P&> front() const {
                 if (data->items.empty()) {
-                    throw std::out_of_range("Playlist is empty");
+                    throw std::out_of_range("front, playlist empty");
                 }
 
                 const auto& front_item = data->items.front();
@@ -298,7 +302,7 @@ namespace cxx {
             void remove(const T& track) {
                 auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
-                    throw std::invalid_argument("Track is not on the playlist");
+                    throw std::invalid_argument("remove, unknown track");
                 }
 
                 // Copy-On-Write.
