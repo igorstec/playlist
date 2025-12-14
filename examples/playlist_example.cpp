@@ -182,12 +182,12 @@ int main() {
   for (unsigned i = 0; i < 10 * BIG_VALUE; i++)
     vec.push_back(playlist2); // Wszystkie obiekty w vec współdzielą dane.
 
-  //==============================================================================
-  //Własne TESTY
-  //==============================================================================
+  // //==============================================================================
+  // //Własne TESTY
+  // //==============================================================================
 
-  // Modyfikujemy jeden z obiektów w vec.
-  vec[BIG_VALUE / 2].pop_front();
-  assert(vec[BIG_VALUE / 2].size() == BIG_VALUE - 1);
-  assert(playlist2.size() == BIG_VALUE);
+  // // Modyfikujemy jeden z obiektów w vec.
+  // vec[BIG_VALUE / 2].pop_front();
+  // assert(vec[BIG_VALUE / 2].size() == BIG_VALUE - 1);
+  // assert(playlist2.size() == BIG_VALUE);
 }

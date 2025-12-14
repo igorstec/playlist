@@ -52,11 +52,11 @@ namespace cxx {
 
             struct PlaylistItem {
                 const std::shared_ptr<const T> track;
-                const std::unique_ptr< P> params;
+                const std::unique_ptr<P> params;
                 TrackPositionsMap::iterator track_it;
             };
 
-            // Shared data structure for CoW implementation
+            // Shared data structure for Copy-on-Write implementation.
             struct PlaylistData {
                 PlaylistItemList items;
                 TrackPositionsMap track_positions_map;
@@ -72,14 +72,14 @@ namespace cxx {
                     new_data->items.emplace_back(
                         item.track,
                         std::move(new_params),
-                        typename TrackPositionsMap::iterator{}
+                        typename TrackPositionsMap::iterator()
                     );
 
                     auto track_it = new_data->track_positions_map.find(*item.track);
                     if (track_it == new_data->track_positions_map.end()) {
                         auto emplaced = new_data->track_positions_map.emplace(
                             item.track,
-                            std::list<typename PlaylistItemList::const_iterator>{}
+                            std::list<typename PlaylistItemList::const_iterator>()
                         );
                         track_it = emplaced.first;
                     }
@@ -97,128 +97,140 @@ namespace cxx {
 
         public:
             struct play_iterator {
-                using iterator_concept = std::bidirectional_iterator_tag;
-                using value_type       = PlaylistItem;
-                using difference_type  = std::ptrdiff_t;
+                private:
+                    typename PlaylistItemList::const_iterator it;
+                
+                public:
+                    using iterator_concept = std::bidirectional_iterator_tag;
+                    using value_type       = PlaylistItem;
+                    using difference_type  = std::ptrdiff_t; 
+                
+                    explicit play_iterator(
+                        typename PlaylistItemList::const_iterator iterator
+                    ) noexcept
+                    : it(iterator)
+                    {}
 
-                using pointer          = const PlaylistItem*;
-                using reference        = const PlaylistItem&;
-            private:
-                typename PlaylistItemList::const_iterator it;
-            public:
-                explicit play_iterator(typename PlaylistItemList::const_iterator iter) noexcept
-                    : it(iter) {}
-                play_iterator(const play_iterator& other) noexcept
-                    : it(other.it) {}
+                    play_iterator(const play_iterator& other) noexcept
+                    : it(other.it)
+                    {}
 
-                play_iterator& operator=(const play_iterator&) = default;
+                    ~play_iterator(void) = default;
 
-                bool operator==(const play_iterator& other) const {
-                    return it == other.it;
-                }
+                    play_iterator& operator=(const play_iterator&) = default;
 
-                bool operator!=(const play_iterator& other) const {
-                    return it != other.it;
-                }
+                    bool operator==(const play_iterator& other) const {
+                        return it == other.it;
+                    }
 
-                reference operator*() const {
-                    return *it;
-                };
-                pointer operator->() const {
-                    return &*it;
-                };
+                    bool operator!=(const play_iterator& other) const {
+                        return it != other.it;
+                    }
 
+                    const PlaylistItem& operator*(void) const {
+                        return *it;
+                    }
 
-                play_iterator& operator++() {
-                    ++it;
-                    return *this;
-                };
-                play_iterator& operator--() {
-                    --it;
-                    return *this;
-                };
+                    const PlaylistItem* operator->(void) const {
+                        return &*it;
+                    }
 
-                play_iterator operator++(int) {
-                    play_iterator temp = *this;
-                    ++it;
-                    return temp;
+                    play_iterator& operator++(void) {
+                        ++it;
+                        return *this;
+                    }
 
-                };
-                play_iterator operator--(int) {
-                    play_iterator temp = *this;
-                    --it;
-                    return temp;
-                };
+                    play_iterator& operator--(void) {
+                        --it;
+                        return *this;
+                    }
+
+                    play_iterator operator++(int) {
+                        play_iterator ret = *this;
+                        ++it;
+                        return ret;
+                    }
+
+                    play_iterator operator--(int) {
+                        play_iterator ret = *this;
+                        --it;
+                        return ret;
+                    }
+
             }; // play_iterator
 
             struct sorted_iterator {
-            public:
-                using iterator_concept = std::bidirectional_iterator_tag;
-                using value_type       = typename TrackPositionsMap::value_type;
-                using difference_type  = std::ptrdiff_t;
-                using pointer          = const value_type*;
-                using reference        = const value_type&;
-
-            private:
-                typename TrackPositionsMap::const_iterator it;
-            public:
-                explicit sorted_iterator(typename TrackPositionsMap::const_iterator iter) noexcept
-                    : it(iter) {}
-                sorted_iterator(const sorted_iterator& other) noexcept
-                    : it(other.it) {}
-
-                sorted_iterator& operator=(const sorted_iterator&) = default;
+                private:
+                    typename TrackPositionsMap::const_iterator it;
                 
-                bool operator==(const sorted_iterator& other) const {
-                    return it == other.it;
-                }
+                public:
+                    using iterator_concept = std::bidirectional_iterator_tag;
+                    using value_type       = typename TrackPositionsMap::value_type;
+                    using difference_type  = std::ptrdiff_t;
 
-                bool operator!=(const sorted_iterator& other) const {
-                    return it != other.it;
-                }
+                    explicit sorted_iterator(
+                        typename TrackPositionsMap::const_iterator iterator
+                    ) noexcept
+                    : it(iterator)
+                    {}
+                    
+                    sorted_iterator(const sorted_iterator& other) noexcept
+                    : it(other.it)
+                    {}
 
-                pointer operator->() const {
-                    return &*it;
-                };
-                reference operator*() const {
-                    return *it;
-                }
-                sorted_iterator& operator++() {
-                    ++it;
-                    return *this;
-                };
-                sorted_iterator operator++(int) {
-                    sorted_iterator temp = *this;
-                    ++it;
-                    return temp;
-                }
+                    ~sorted_iterator(void) = default;
+
+                    sorted_iterator& operator=(const sorted_iterator&) = default;
+                    
+                    bool operator==(const sorted_iterator& other) const {
+                        return it == other.it;
+                    }
+
+                    bool operator!=(const sorted_iterator& other) const {
+                        return it != other.it;
+                    }
+
+                    const value_type* operator->(void) const {
+                        return &*it;
+                    }
+
+                    const value_type& operator*(void) const {
+                        return *it;
+                    }
+                    
+                    sorted_iterator& operator++(void) {
+                        ++it;
+                        return *this;
+                    }
+
+                    sorted_iterator operator++(int) {
+                        sorted_iterator ret = *this;
+                        ++it;
+                        return ret;
+                    }
 
             }; // sorted_iterator
         
-            // Constructors
-            playlist() : data(std::make_shared<PlaylistData>()) {}
+            playlist()
+            : data(std::make_shared<PlaylistData>())
+            {}
 
             playlist(const playlist& that)
-                : data(that.data) {
-                // Copy-on-write: share data until modification
-            }
+            : data(that.data)
+            {}
 
             playlist(playlist&& that) noexcept
-                : data(std::move(that.data)) {
-                // Move constructor leaves original in consistent empty state which is safer
-                that.data = std::make_shared<PlaylistData>();
-            }
+            : data(std::move(that.data))
+            {}
 
-            ~playlist() noexcept = default;
+            ~playlist(void) noexcept = default;
 
             playlist& operator=(playlist that) noexcept {
-                // Copy-and-swap idiom with argument by value
-                // Exception safe: swap is noexcept and is faster than '='
                 std::swap(data, that.data);
                 return *this;
             }
 
-            // Complexity: O(logn).
+            // TODO: inspect for exceptions.
             void push_back(const T& track, const P& params) {
                 copy_data();
 
@@ -234,7 +246,7 @@ namespace cxx {
                         track_ptr, 
                         std::list<typename PlaylistItemList::const_iterator>{}
                     );
-                    
+
                     track_it = emplaced.first;
                 } else {
                     track_ptr = track_it->first;
@@ -251,7 +263,6 @@ namespace cxx {
                 track_it->second.push_back(item_it);
             }
 
-            // Complexity: O(1) - even the map erasure is amortized constant.
             void pop_front() {
                 if (data->items.empty()) {
                     throw std::out_of_range("Playlist is empty");
@@ -274,7 +285,6 @@ namespace cxx {
                 data->items.pop_front();
             }
             
-            // Complexity: O(1).
             const std::pair<const T&, const P&> front() const {
                 if (data->items.empty()) {
                     throw std::out_of_range("Playlist is empty");
@@ -285,8 +295,6 @@ namespace cxx {
                 return {*front_item.track, *front_item.params};
             }
 
-            // Complexity: O(logn + k),
-            // where k is the number of occurences of the track in the playlist.
             void remove(const T& track) {
                 auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
@@ -312,7 +320,6 @@ namespace cxx {
                 data = std::make_shared<PlaylistData>();
             }
 
-            // Complexity: O(1).
             size_t size() const {
                 return data->items.size();
             }
@@ -322,7 +329,10 @@ namespace cxx {
             }
 
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) const {
-                return {*(it->first), it->second.size()};
+                const auto& track_ptr = it->first;
+                const auto& positions_list = it->second;
+                
+                return {*track_ptr, positions_list.size()};
             }
 
             P& params(const play_iterator& it) {
@@ -357,7 +367,7 @@ namespace cxx {
             sorted_iterator sorted_end() const {
                 return sorted_iterator(data->track_positions_map.cend());
             }
-    };
+    }; // playlist
 
 } // namespace cxx
 
