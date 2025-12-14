@@ -3,16 +3,14 @@
 
 #include <utility>
 #include <map>
-#include <memory>
 #include <list>
 #include <stdexcept>
-#include <iterator>
 
 namespace cxx {
 
     template <typename T, typename P>
     class playlist {
-        private:        
+        private:
             // Transparent comparator inspired by:
             // https://www.fluentcpp.com/2017/06/09/search-set-another-type-key/
             struct TrackPtrComparator {
@@ -63,10 +61,10 @@ namespace cxx {
             };
 
             std::shared_ptr<PlaylistData> data;
-        
+
             std::shared_ptr<PlaylistData> clone_data() const {
                 auto new_data = std::make_shared<PlaylistData>();
-                
+
                 for (const auto& item : data->items) {
                     auto new_params = std::make_unique<P>(*item.params);
                     new_data->items.emplace_back(
@@ -87,25 +85,25 @@ namespace cxx {
                     // Add the new track position (current last added) to its position list.
                     const auto item_it = --new_data->items.end();
                     track_it->second.push_back(item_it);
-                    
+
                     // Update the item's track_it to point to the new map entry.
                     item_it->track_it = track_it;
                 }
-                
+
                 return new_data;
             }
 
         public:
             struct play_iterator {
                 friend class playlist;
-                
+
                 private:
                     typename PlaylistItemList::const_iterator it;
-                
+
                 public:
                     using iterator_concept = std::bidirectional_iterator_tag;
-                    using difference_type  = std::ptrdiff_t; 
-                
+                    using difference_type  = std::ptrdiff_t;
+
                     explicit play_iterator(
                         typename PlaylistItemList::const_iterator iterator
                     ) noexcept
@@ -154,10 +152,10 @@ namespace cxx {
 
             struct sorted_iterator {
                 friend class playlist;
-                
+
                 private:
                     typename TrackPositionsMap::const_iterator it;
-                
+
                 public:
                     using iterator_concept = std::bidirectional_iterator_tag;
                     using difference_type  = std::ptrdiff_t;
@@ -167,7 +165,7 @@ namespace cxx {
                     ) noexcept
                     : it(iterator)
                     {}
-                    
+
                     sorted_iterator(const sorted_iterator& other) noexcept
                     : it(other.it)
                     {}
@@ -175,7 +173,7 @@ namespace cxx {
                     ~sorted_iterator(void) noexcept = default;
 
                     sorted_iterator& operator=(const sorted_iterator&) noexcept = default;
-                    
+
                     bool operator==(const sorted_iterator& other) const noexcept {
                         return it == other.it;
                     }
@@ -183,7 +181,7 @@ namespace cxx {
                     bool operator!=(const sorted_iterator& other) const noexcept {
                         return it != other.it;
                     }
-                    
+
                     sorted_iterator& operator++(void) noexcept {
                         ++it;
                         return *this;
@@ -196,7 +194,7 @@ namespace cxx {
                     }
 
             }; // sorted_iterator
-        
+
             playlist() noexcept
             : data(std::make_shared<PlaylistData>())
             {}
@@ -219,6 +217,7 @@ namespace cxx {
             }
 
             void push_back(const T& track, const P& params) {
+                // Copy-on-Write: detach if shared.
                 auto& target_data = data;
                 bool should_copy = (data && data.use_count() > 1);
 
@@ -233,17 +232,18 @@ namespace cxx {
                 if (track_it == target_data->track_positions_map.end()) {
                     auto track_ptr = std::make_shared<const T>(track);
                     auto emplaced = target_data->track_positions_map.emplace(
-                        std::move(track_ptr), 
+                        std::move(track_ptr),
                         std::list<typename PlaylistItemList::const_iterator>{}
                     );
                     track_it = emplaced.first;
                     inserted_in_map = true;
                 }
 
+                // Add to items list with strong exception safety.
                 try {
                     target_data->items.emplace_back(
-                        track_it->first, 
-                        std::move(params_ptr), 
+                        track_it->first,
+                        std::move(params_ptr),
                         track_it
                     );
                 } catch (...) {
@@ -253,6 +253,7 @@ namespace cxx {
                     throw;
                 }
 
+                // Register item position in track's position list.
                 try {
                     const auto item_it = --target_data->items.end();
                     track_it->second.push_back(item_it);
@@ -264,16 +265,19 @@ namespace cxx {
                     throw;
                 }
 
+                // Update shared data if it was cloned.
                 if (should_copy) {
                     data = std::move(target_data);
                 }
             }
 
-            void pop_front() {
+            void pop_front() noexcept(false) {
+                // Check if empty BEFORE COW check (strong exception safety).
                 if (data->items.empty()) {
                     throw std::out_of_range("pop_front, playlist empty");
                 }
 
+                // Copy-on-Write: detach if shared.
                 if (data && data.use_count() > 1) {
                     data = clone_data();
                 }
@@ -292,23 +296,25 @@ namespace cxx {
 
                 data->items.pop_front();
             }
-            
-            const std::pair<const T&, const P&> front() const {
+
+            const std::pair<const T&, const P&> front() const noexcept(false) {
                 if (data->items.empty()) {
                     throw std::out_of_range("front, playlist empty");
                 }
 
                 const auto& front_item = data->items.front();
-                
+
                 return {*front_item.track, *front_item.params};
             }
 
-            void remove(const T& track) {
+            void remove(const T& track) noexcept(false) {
+                // Check existence BEFORE COW check (strong exception safety).
                 auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
                     throw std::invalid_argument("remove, unknown track");
                 }
 
+                // Copy-on-Write: detach if shared.
                 if (data && data.use_count() > 1) {
                     data = clone_data();
                     // Gets an iterator to the track's positions in the new data.
@@ -323,19 +329,21 @@ namespace cxx {
                 data->track_positions_map.erase(track_it);
             }
 
-            void clear() {
+            void clear() noexcept {
                 data = std::make_shared<PlaylistData>();
             }
 
-            size_t size() const {
+            size_t size() const noexcept {
                 return data->items.size();
             }
 
-            const std::pair<const T&, const P&> play(const play_iterator& it) const {
+            // Returns const reference to track and params at iterator position. O(1) complexity.
+            const std::pair<const T&, const P&> play(const play_iterator& it) const noexcept {
                 return {*(it.it->track), *(it.it->params)};
             }
 
-            const std::pair<const T&, size_t> pay(const sorted_iterator& it) const {
+            // Returns const reference to track and count of occurrences. O(k) where k is occurrence count.
+            const std::pair<const T&, size_t> pay(const sorted_iterator& it) const noexcept {
                 const auto& track_ptr = it.it->first;
                 const auto& positions_list = it.it->second;
                 
@@ -345,6 +353,7 @@ namespace cxx {
             P& params(const play_iterator& it) {
                 auto iterator = it;
 
+                // Copy-on-Write: detach if shared.
                 if (data && data.use_count() > 1) {
                     auto pointed_index = std::distance(play_begin().it, it.it);
                     data = clone_data();
@@ -357,26 +366,27 @@ namespace cxx {
                 return *iterator.it->params;
             }
 
+            // Const version: no COW needed, just access
             const P& params(const play_iterator& it) const {
                 return *it.it->params;
             }
 
-            play_iterator play_begin() const {
+            play_iterator play_begin() const noexcept {
                 return play_iterator(data->items.begin());
             }
 
-            play_iterator play_end() const {
+            play_iterator play_end() const noexcept {
                 return play_iterator(data->items.end());
             }
 
-            sorted_iterator sorted_begin() const {
+            sorted_iterator sorted_begin() const noexcept {
                 return sorted_iterator(data->track_positions_map.cbegin());
             }
 
-            sorted_iterator sorted_end() const {
+            sorted_iterator sorted_end() const noexcept {
                 return sorted_iterator(data->track_positions_map.cend());
             }
-    
+
     }; // playlist
 
 } // namespace cxx
