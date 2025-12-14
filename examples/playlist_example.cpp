@@ -190,4 +190,6 @@ int main() {
   vec[BIG_VALUE / 2].pop_front();
   assert(vec[BIG_VALUE / 2].size() == BIG_VALUE - 1);
   assert(playlist2.size() == BIG_VALUE);
+
+  return 0;
 }

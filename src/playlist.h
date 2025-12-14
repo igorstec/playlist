@@ -97,12 +97,13 @@ namespace cxx {
 
         public:
             struct play_iterator {
+                friend class playlist;
+                
                 private:
                     typename PlaylistItemList::const_iterator it;
                 
                 public:
                     using iterator_concept = std::bidirectional_iterator_tag;
-                    using value_type       = PlaylistItem;
                     using difference_type  = std::ptrdiff_t; 
                 
                     explicit play_iterator(
@@ -125,14 +126,6 @@ namespace cxx {
 
                     bool operator!=(const play_iterator& other) const noexcept {
                         return it != other.it;
-                    }
-
-                    const PlaylistItem& operator*(void) const noexcept {
-                        return *it;
-                    }
-
-                    const PlaylistItem* operator->(void) const noexcept {
-                        return &*it;
                     }
 
                     play_iterator& operator++(void) noexcept {
@@ -160,12 +153,13 @@ namespace cxx {
             }; // play_iterator
 
             struct sorted_iterator {
+                friend class playlist;
+                
                 private:
                     typename TrackPositionsMap::const_iterator it;
                 
                 public:
                     using iterator_concept = std::bidirectional_iterator_tag;
-                    using value_type       = typename TrackPositionsMap::value_type;
                     using difference_type  = std::ptrdiff_t;
 
                     explicit sorted_iterator(
@@ -188,14 +182,6 @@ namespace cxx {
 
                     bool operator!=(const sorted_iterator& other) const noexcept {
                         return it != other.it;
-                    }
-
-                    const value_type* operator->(void) const noexcept {
-                        return &*it;
-                    }
-
-                    const value_type& operator*(void) const noexcept {
-                        return *it;
                     }
                     
                     sorted_iterator& operator++(void) noexcept {
@@ -221,7 +207,9 @@ namespace cxx {
 
             playlist(playlist&& that) noexcept
             : data(std::move(that.data))
-            {}
+            {
+                that.data = std::make_shared<PlaylistData>();
+            }
 
             ~playlist(void) noexcept = default;
 
@@ -344,12 +332,12 @@ namespace cxx {
             }
 
             const std::pair<const T&, const P&> play(const play_iterator& it) const {
-                return {*(it->track), *(it->params)};
+                return {*(it.it->track), *(it.it->params)};
             }
 
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) const {
-                const auto& track_ptr = it->first;
-                const auto& positions_list = it->second;
+                const auto& track_ptr = it.it->first;
+                const auto& positions_list = it.it->second;
                 
                 return {*track_ptr, positions_list.size()};
             }
@@ -358,17 +346,19 @@ namespace cxx {
                 auto iterator = it;
 
                 if (data && data.use_count() > 1) {
-                    auto pointed_index = std::distance(play_begin(), it);
+                    auto pointed_index = std::distance(play_begin().it, it.it);
                     data = clone_data();
-                    iterator = play_begin();
-                    std::advance(iterator, pointed_index);
+                    
+                    auto items_it = data->items.begin();
+                    std::advance(items_it, pointed_index);
+                    iterator = play_iterator(items_it);
                 }
                 
-                return *iterator->params;
+                return *iterator.it->params;
             }
 
             const P& params(const play_iterator& it) const {
-                return *it->params;
+                return *it.it->params;
             }
 
             play_iterator play_begin() const {
@@ -386,6 +376,7 @@ namespace cxx {
             sorted_iterator sorted_end() const {
                 return sorted_iterator(data->track_positions_map.cend());
             }
+    
     }; // playlist
 
 } // namespace cxx
