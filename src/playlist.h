@@ -197,7 +197,7 @@ namespace cxx {
 
             }; // sorted_iterator
 
-            playlist() noexcept
+            playlist()
             : data(std::make_shared<PlaylistData>())
             {}
 
@@ -208,7 +208,6 @@ namespace cxx {
             playlist(playlist&& that)
             : data(std::move(that.data))
             {
-                that.data = std::make_shared<PlaylistData>();
             }
 
             ~playlist(void) noexcept = default;
@@ -219,6 +218,7 @@ namespace cxx {
             }
 
             void push_back(const T& track, const P& params) {
+                if(!data) data = std::make_shared<PlaylistData>();
                 // Copy-on-Write: detach if shared.
                 auto& target_data = data;
                 bool should_copy = (data && data.use_count() > 1);
@@ -275,7 +275,7 @@ namespace cxx {
 
             void pop_front() {
                 // Check if empty BEFORE COW check (strong exception safety).
-                if (data->items.empty()) {
+                if (!data || data->items.empty()) {
                     throw std::out_of_range("pop_front, playlist empty");
                 }
 
@@ -300,7 +300,7 @@ namespace cxx {
             }
 
             const std::pair<const T&, const P&> front() const {
-                if (data->items.empty()) {
+                if (!data || data->items.empty()) {
                     throw std::out_of_range("front, playlist empty");
                 }
 
@@ -310,6 +310,10 @@ namespace cxx {
             }
 
             void remove(const T& track) {
+                // Check existence BEFORE COW check (strong exception safety).
+                if(!data) {
+                    throw std::invalid_argument("remove, unknown track");
+                }
                 auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
                     throw std::invalid_argument("remove, unknown track");
@@ -317,7 +321,8 @@ namespace cxx {
 
                 // Copy-on-Write: detach if shared.
                 if (data && data.use_count() > 1) {
-                    data = clone_data();
+                    auto new_data = clone_data();
+                    data = std::move(new_data);
                     // Gets an iterator to the track's positions in the new data.
                     track_it = data->track_positions_map.find(track);
                 }
@@ -326,15 +331,15 @@ namespace cxx {
                 for (const auto position : positions) {
                     data->items.erase(position);
                 }
-
                 data->track_positions_map.erase(track_it);
             }
 
             void clear() noexcept {
-                data = std::make_shared<PlaylistData>();
+                data.reset();
             }
 
             size_t size() const noexcept {
+                if(!data) return 0;
                 return data->items.size();
             }
 
@@ -352,6 +357,7 @@ namespace cxx {
             }
 
             P& params(const play_iterator& it) {
+                if (!data) throw std::out_of_range("params: null data");
                 auto iterator = it;
 
                 // Copy-on-Write: detach if shared.
@@ -373,18 +379,22 @@ namespace cxx {
             }
 
             play_iterator play_begin() const noexcept {
+                if (!data) return play_iterator(typename PlaylistItemList::const_iterator());
                 return play_iterator(data->items.begin());
             }
 
             play_iterator play_end() const noexcept {
+                if (!data) return play_iterator(typename PlaylistItemList::const_iterator());
                 return play_iterator(data->items.end());
             }
 
             sorted_iterator sorted_begin() const noexcept {
+                if (!data) return sorted_iterator(typename TrackPositionsMap::const_iterator());
                 return sorted_iterator(data->track_positions_map.cbegin());
             }
 
             sorted_iterator sorted_end() const noexcept {
+                if (!data) return sorted_iterator(typename TrackPositionsMap::const_iterator());
                 return sorted_iterator(data->track_positions_map.cend());
             }
 
