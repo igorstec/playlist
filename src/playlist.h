@@ -205,8 +205,10 @@ namespace cxx {
             : data(that.data)
             {}
 
-            playlist(playlist&& that) noexcept
-            : data(std::move(that.data)) {}
+            playlist(playlist&& that)
+            : data(std::move(that.data))
+            {
+            }
 
             ~playlist(void) noexcept = default;
 
@@ -216,19 +218,16 @@ namespace cxx {
             }
 
             void push_back(const T& track, const P& params) {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return;
-                    }
-                }
                 // Copy-on-Write: detach if shared.
                 auto& target_data = data;
                 bool should_copy = (data && data.use_count() > 1);
 
                 if (should_copy) {
                     target_data = clone_data();
+                }
+                if(!data) {
+                    target_data = std::make_shared<PlaylistData>();
+                    should_copy = true;
                 }
 
                 auto params_ptr = std::make_unique<P>(params);
@@ -278,15 +277,8 @@ namespace cxx {
             }
 
             void pop_front() {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return;
-                    }
-                }
                 // Check if empty BEFORE COW check (strong exception safety).
-                if (data->items.empty()) {
+                if (!data || data->items.empty()) {
                     throw std::out_of_range("pop_front, playlist empty");
                 }
 
@@ -311,14 +303,7 @@ namespace cxx {
             }
 
             const std::pair<const T&, const P&> front() const {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return;
-                    }
-                }
-                if (data->items.empty()) {
+                if (!data || data->items.empty()) {
                     throw std::out_of_range("front, playlist empty");
                 }
 
@@ -328,14 +313,10 @@ namespace cxx {
             }
 
             void remove(const T& track) {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return;
-                    }
-                }
                 // Check existence BEFORE COW check (strong exception safety).
+                if(!data) {
+                    throw std::invalid_argument("remove, unknown track");
+                }
                 auto track_it = data->track_positions_map.find(track);
                 if (track_it == data->track_positions_map.cend()) {
                     throw std::invalid_argument("remove, unknown track");
@@ -357,13 +338,11 @@ namespace cxx {
             }
 
             void clear() noexcept {
-                    this->data = nullptr;
+                data = std::make_shared<PlaylistData>();
             }
 
             size_t size() const noexcept {
-                if(this->data == nullptr) {
-                    return 0;
-                }
+                if(!data) return 0;
                 return data->items.size();
             }
 
@@ -376,30 +355,24 @@ namespace cxx {
             const std::pair<const T&, size_t> pay(const sorted_iterator& it) const noexcept {
                 const auto& track_ptr = it.it->first;
                 const auto& positions_list = it.it->second;
-                
+
                 return {*track_ptr, positions_list.size()};
             }
 
             P& params(const play_iterator& it) {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return 0;
-                    }
-                }
+                if (!data) throw std::out_of_range("params: null data");
                 auto iterator = it;
 
                 // Copy-on-Write: detach if shared.
                 if (data && data.use_count() > 1) {
                     auto pointed_index = std::distance(play_begin().it, it.it);
                     data = clone_data();
-                    
+
                     auto items_it = data->items.begin();
                     std::advance(items_it, pointed_index);
                     iterator = play_iterator(items_it);
                 }
-                
+
                 return *iterator.it->params;
             }
 
@@ -409,46 +382,22 @@ namespace cxx {
             }
 
             play_iterator play_begin() const noexcept {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return 0;
-                    }
-                }
+                if (!data) return play_iterator(typename PlaylistItemList::const_iterator());
                 return play_iterator(data->items.begin());
             }
 
             play_iterator play_end() const noexcept {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return 0;
-                    }
-                }
+                if (!data) return play_iterator(typename PlaylistItemList::const_iterator());
                 return play_iterator(data->items.end());
             }
 
             sorted_iterator sorted_begin() const noexcept {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return 0;
-                    }
-                }
+                if (!data) return sorted_iterator(typename TrackPositionsMap::const_iterator());
                 return sorted_iterator(data->track_positions_map.cbegin());
             }
 
             sorted_iterator sorted_end() const noexcept {
-                if(this->data == nullptr) {
-                    try {
-                        this->data = std::make_shared<PlaylistData>();
-                    }catch(...) {
-                        return 0;
-                    }
-                }
+                if (!data) return sorted_iterator(typename TrackPositionsMap::const_iterator());
                 return sorted_iterator(data->track_positions_map.cend());
             }
 
